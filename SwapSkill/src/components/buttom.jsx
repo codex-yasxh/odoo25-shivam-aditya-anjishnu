@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import SkillSwapPlatform from './userprofile';
 import SkillRequestForm from './skill';
 
-export default function App() {
+export default function App({ userData }) {
   const [currentScreen, setCurrentScreen] = useState('profile');
-  const [targetUserData, setTargetUserData] = useState(null);
+  const [targetUserData, setTargetUserData] = useState(userData || {
+    userSkillsOffered: ['JavaScript', 'React', 'Node.js'],
+    userSkillsWanted: ['Python', 'Machine Learning', 'Data Science'],
+    userName: 'Marc Demo'
+  });
 
   const handleRequestClick = (userData) => {
     setTargetUserData(userData);
@@ -19,7 +23,10 @@ export default function App() {
   return (
     <>
       {currentScreen === 'profile' && (
-        <SkillSwapPlatform onRequestClick={handleRequestClick} />
+        <SkillSwapPlatform 
+          onRequestClick={handleRequestClick} 
+          userData={targetUserData}
+        />
       )}
       {currentScreen === 'request' && (
         <SkillRequestForm 

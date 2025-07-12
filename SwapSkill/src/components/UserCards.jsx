@@ -1,5 +1,11 @@
 // components/UserCard.jsx
-const UserCard = ({ name, skillsOffered, skillsWanted, rating }) => {
+const UserCard = ({ name, skillsOffered, skillsWanted, rating, onRequestClick, isLoggedIn }) => {
+  const handleRequestClick = () => {
+    if (onRequestClick) {
+      onRequestClick();
+    }
+  };
+
   return (
     <div className="flex items-center p-4 border-b border-gray-200">
       <div className="mr-4">
@@ -31,8 +37,16 @@ const UserCard = ({ name, skillsOffered, skillsWanted, rating }) => {
         </div>
       </div>
       <div className="flex flex-col items-center">
-        <button className="mb-2 px-4 py-1 bg-red-500 text-white rounded duration-500 hover:bg-blue-600">
-          Request
+        <button 
+          onClick={handleRequestClick}
+          className={`mb-2 px-4 py-1 text-white rounded duration-500 ${
+            isLoggedIn 
+              ? 'bg-red-500 hover:bg-red-600' 
+              : 'bg-gray-500 hover:bg-gray-600'
+          }`}
+          title={isLoggedIn ? 'Click to view profile and request skill swap' : 'Please login to request skill swap'}
+        >
+          {isLoggedIn ? 'Request' : 'Login to Request'}
         </button>
         <div className="text-sm ">
           <span>Rating {rating}/5</span>

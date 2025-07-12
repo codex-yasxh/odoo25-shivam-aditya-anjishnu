@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { User } from 'lucide-react';
 
-export default function SkillSwapPlatform({ onRequestClick }) {
-  const skillsOffered = ['JavaScript', 'React', 'Node.js'];
-  const skillsWanted = ['Python', 'Machine Learning', 'Data Science'];
+export default function SkillSwapPlatform({ onRequestClick, userData }) {
+  // Use userData if provided, otherwise use default data
+  const skillsOffered = userData?.userSkillsOffered || ['JavaScript', 'React', 'Node.js'];
+  const skillsWanted = userData?.userSkillsWanted || ['Python', 'Machine Learning', 'Data Science'];
+  const userName = userData?.userName || 'Marc Demo';
 
   const handleRequestClick = () => {
     if (onRequestClick) {
       onRequestClick({
         userSkillsOffered: skillsOffered,
         userSkillsWanted: skillsWanted,
-        userName: 'Marc Demo'
+        userName: userName
       });
     }
   };
@@ -52,7 +54,7 @@ export default function SkillSwapPlatform({ onRequestClick }) {
 
               {/* Profile Name */}
               <div className="mb-16">
-                <h3 className="text-white text-4xl font-normal mb-4">Marc Demo</h3>
+                <h3 className="text-white text-4xl font-normal mb-4">{userName}</h3>
               </div>
 
               {/* Skills Offered */}

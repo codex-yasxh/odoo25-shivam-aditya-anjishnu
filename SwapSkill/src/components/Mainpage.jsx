@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import UserCard from './UserCards.jsx';
 import LoginPage from './login.jsx';
+import App from './buttom.jsx';
 
 const MainPage = () => {
   // Sample data - in a real app you would fetch this from an API
@@ -105,6 +106,10 @@ const MainPage = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // State for showing user profile/request flow
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUserData, setSelectedUserData] = useState(null);
+
   // Pagination calculations
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
@@ -122,7 +127,34 @@ const MainPage = () => {
   // Handle logout
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setShowUserProfile(false);
+    setSelectedUserData(null);
   };
+
+  // Handle request button click
+  const handleRequestClick = (userData) => {
+    if (isLoggedIn) {
+      setSelectedUserData(userData);
+      setShowUserProfile(true);
+    } else {
+      setShowLogin(true);
+    }
+  };
+
+
+
+  // If showing user profile, render the profile component
+  if (showUserProfile && selectedUserData) {
+    return (
+      <div className="w-full h-full">
+        <App userData={{
+          userSkillsOffered: selectedUserData.skillsOffered,
+          userSkillsWanted: selectedUserData.skillsWanted,
+          userName: selectedUserData.name
+        }} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full mx-auto p-4 bg-gradient-to-br from-black from-10% to-pink-800 to-90%">
@@ -190,7 +222,12 @@ const MainPage = () => {
       {/* User Cards */}
       <div className="border text-white border-gray-200 rounded-lg overflow-hidden">
         {currentUsers.map((user, index) => (
-          <UserCard key={index} {...user} />
+          <UserCard 
+            key={index} 
+            {...user} 
+            onRequestClick={() => handleRequestClick(user)}
+            isLoggedIn={isLoggedIn}
+          />
         ))}
       </div>
       

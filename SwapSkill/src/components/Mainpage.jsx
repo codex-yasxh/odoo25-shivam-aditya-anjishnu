@@ -5,15 +5,21 @@ const MainPage = () => {
   // Sample data - you would fetch this from an API in a real app
   const users = [
     {
-      name: "Marc Demo",
-      skillsOffered: ["Own Script", "Python"],
+      name: "Steve",
+      skillsOffered: ["Javascript", "Python","Design"],
       skillsWanted: ["Version", "Graphic diagram"],
       rating: 3.4
     },
     {
-      name: "Microsoft",
+      name: "Sam",
+      skillsOffered: ["Wordpress", "Excel","Docs"],
+      skillsWanted: ["Stats", "Web Dev"],
+      rating: 2.5
+    },
+    {
+      name: "David",
       skillsOffered: ["Own Script", "Python"],
-      skillsWanted: ["Version", "Graphic diagram"],
+      skillsWanted: ["Machine Learning", "Data scrapping"],
       rating: 2.5
     },
     // Add more users as needed
@@ -32,10 +38,10 @@ const MainPage = () => {
       <div className="mb-6 flex flex-row gap-4 justify-center">
         <select className="block w-32 rounded-md text-black border-gray-300 shadow-sm bg-purple-200 sm:text-sm px-2">
             <div className='text-black font-light px-4'>
-                <option>Option 1</option>
-                <option>Option 2</option>
-                <option>Option 3</option>
-                <option>Option 4</option>
+                <option>Availability</option>
+                <option>Free</option>
+                <option>Busy</option>
+                <option>Waiting</option>
             </div>
       
       Availaibility
@@ -47,7 +53,7 @@ const MainPage = () => {
         />
       </div>
       
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border text-white border-gray-200 rounded-lg overflow-hidden">
         {users.map((user, index) => (
           <UserCard key={index} {...user} />
         ))}
@@ -58,7 +64,7 @@ const MainPage = () => {
           {[1, 2, 3, 4, 5, 6, 7].map(num => (
             <button 
               key={num}
-              className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+              className="w-8 h-8 text-white flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
             >
               {num}
             </button>

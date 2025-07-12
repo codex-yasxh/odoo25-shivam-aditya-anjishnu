@@ -3,7 +3,9 @@ const UserCard = ({ name, skillsOffered, skillsWanted, rating }) => {
   return (
     <div className="flex items-center p-4 border-b border-gray-200">
       <div className="mr-4">
-        <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
+        <div className="w-12 h-12 bg-gray-300">
+            <img className="rounded-full" src="https://img.freepik.com/free-photo/happy-man-student-with-afro-hairdo-shows-white-teeth-being-good-mood-after-classes_273609-16608.jpg?semt=ais_hybrid&w=740" alt="" />
+        </div>
       </div>
       <div className="flex-grow">
         <h3 className="font-semibold">{name}</h3>

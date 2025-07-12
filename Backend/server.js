@@ -13,10 +13,10 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.error('❌ DB Connection Error:', err));
 
 // ✅ Mount routes (plug them in as you build)
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/swaps', require('./routes/swapRoutes'));
-app.use('/api/feedback', require('./routes/feedbackRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/users', require('../routes/userRoutes'));
+app.use('/api/swaps', require('../routes/swapRoutes'));
+app.use('/api/feedback', require('../routes/feedbackRoutes'));
+app.use('/api/admin', require('../routes/adminRoutes'));
 
 // ✅ Quick test route
 app.get('/test', (req, res) => {

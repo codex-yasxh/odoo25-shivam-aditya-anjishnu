@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { User } from 'lucide-react';
 
-export default function SkillSwapPlatform() {
+export default function SkillSwapPlatform({ onRequestClick }) {
   const skillsOffered = ['JavaScript', 'React', 'Node.js'];
   const skillsWanted = ['Python', 'Machine Learning', 'Data Science'];
+
+  const handleRequestClick = () => {
+    if (onRequestClick) {
+      onRequestClick({
+        userSkillsOffered: skillsOffered,
+        userSkillsWanted: skillsWanted,
+        userName: 'Marc Demo'
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -32,7 +42,10 @@ export default function SkillSwapPlatform() {
             <div className="col-span-8">
               {/* Request Tab */}
               <div className="mb-8">
-                <button className="bg-teal-600 text-white px-6 py-2 rounded text-base font-normal">
+                <button 
+                  onClick={handleRequestClick}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded text-base font-normal transition-colors cursor-pointer"
+                >
                   Request
                 </button>
               </div>

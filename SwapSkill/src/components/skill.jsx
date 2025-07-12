@@ -1,25 +1,37 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-export default function SkillRequestForm() {
+export default function SkillRequestForm({ onBackClick, targetUserData }) {
   const [selectedOfferedSkill, setSelectedOfferedSkill] = useState('');
   const [selectedWantedSkill, setSelectedWantedSkill] = useState('');
   const [message, setMessage] = useState('');
   const [showOfferedDropdown, setShowOfferedDropdown] = useState(false);
   const [showWantedDropdown, setShowWantedDropdown] = useState(false);
 
-  const offeredSkills = ['JavaScript', 'React', 'Node.js', 'Python', 'CSS', 'HTML'];
-  const wantedSkills = ['Machine Learning', 'Data Science', 'UI/UX Design', 'Mobile Development', 'DevOps'];
+  // Your skills (what you can offer) - expanded list
+  const offeredSkills = ['JavaScript', 'React', 'Node.js', 'Python', 'CSS', 'HTML', 'Vue.js', 'Angular', 'PHP', 'TypeScript', 'MongoDB', 'SQL'];
+  
+  // Target user's wanted skills (what they're looking for)
+  const wantedSkills = targetUserData?.userSkillsWanted || ['Python', 'Machine Learning', 'Data Science'];
+  const targetUserName = targetUserData?.userName || 'User';
 
   const handleSubmit = () => {
     if (selectedOfferedSkill && selectedWantedSkill && message.trim()) {
-      alert(`Request submitted!\nOffered: ${selectedOfferedSkill}\nWanted: ${selectedWantedSkill}\nMessage: ${message}`);
+      alert(`Request submitted!\nYou're offering: ${selectedOfferedSkill}\n${targetUserName} wants: ${selectedWantedSkill}\nMessage: ${message}`);
       // Reset form
       setSelectedOfferedSkill('');
       setSelectedWantedSkill('');
       setMessage('');
+      // Optionally go back to profile after successful submission
+      // if (onBackClick) onBackClick();
     } else {
       alert('Please fill in all fields');
+    }
+  };
+
+  const handleBackClick = () => {
+    if (onBackClick) {
+      onBackClick();
     }
   };
 
@@ -29,8 +41,23 @@ export default function SkillRequestForm() {
         {/* Screen 5 Title */}
         <h1 className="text-white text-lg font-normal mb-8 text-left">Screen 5</h1>
         
+        {/* Back Button */}
+        <button
+          onClick={handleBackClick}
+          className="mb-6 text-white hover:text-teal-400 transition-colors"
+        >
+          ← Back to Profile
+        </button>
+        
         {/* Main Container */}
         <div className="border border-white rounded-2xl p-8 bg-black max-w-2xl">
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-white text-xl font-normal">
+              Request Skill Swap with {targetUserName}
+            </h2>
+          </div>
+
           <div className="space-y-8">
             {/* Choose offered skill */}
             <div>
@@ -50,7 +77,7 @@ export default function SkillRequestForm() {
                 </button>
                 
                 {showOfferedDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-white rounded-lg z-10">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-black border border-white rounded-lg z-10 max-h-48 overflow-y-auto">
                     {offeredSkills.map((skill, index) => (
                       <button
                         key={index}
@@ -72,7 +99,7 @@ export default function SkillRequestForm() {
             {/* Choose wanted skill */}
             <div>
               <label className="block text-white text-base font-normal mb-4">
-                Choose one of their wanted skills
+                Choose one of {targetUserName}'s wanted skills
               </label>
               <div className="relative">
                 <button
@@ -114,7 +141,7 @@ export default function SkillRequestForm() {
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Write your message here..."
+                placeholder={`Write your message to ${targetUserName} here...`}
                 className="w-full border border-white rounded-lg bg-black text-white px-4 py-3 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-gray-500"
                 rows={4}
               />
@@ -127,7 +154,7 @@ export default function SkillRequestForm() {
                 onClick={handleSubmit}
                 className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-lg transition-colors font-normal"
               >
-                Submit
+                Submit Request
               </button>
             </div>
           </div>

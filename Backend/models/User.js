@@ -62,4 +62,28 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   bannedAt: {
-    type: Date
+    type: Date,
+    default: null
+  },
+  // Add these fields for better tracking
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  totalReviews: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true // Automatically adds createdAt and updatedAt
+});
+
+// Create indexes for better performance
+userSchema.index({ email: 1 });
+userSchema.index({ skillsOffered: 1 });
+userSchema.index({ location: 1 });
+userSchema.index({ isPublic: 1, status: 1 });
+
+module.exports = mongoose.model('User', userSchema);

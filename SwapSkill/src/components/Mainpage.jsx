@@ -1,18 +1,18 @@
-// components/MainPage.js
-import UserCard from './UserCards.jsx'
+import { useState } from 'react';
+import UserCard from './UserCards.jsx';
 
 const MainPage = () => {
-  // Sample data - you would fetch this from an API in a real app
-  const users = [
+  // Sample data - in a real app you would fetch this from an API
+  const allUsers = [
     {
       name: "Steve",
-      skillsOffered: ["Javascript", "Python","Design"],
+      skillsOffered: ["Javascript", "Python", "Design"],
       skillsWanted: ["Version", "Graphic diagram"],
       rating: 3.4
     },
     {
       name: "Sam",
-      skillsOffered: ["Wordpress", "Excel","Docs"],
+      skillsOffered: ["Wordpress", "Excel", "Docs"],
       skillsWanted: ["Stats", "Web Dev"],
       rating: 2.5
     },
@@ -22,30 +22,108 @@ const MainPage = () => {
       skillsWanted: ["Machine Learning", "Data scrapping"],
       rating: 2.5
     },
-    // Add more users as needed
+    {
+      name: "Emma",
+      skillsOffered: ["React", "Node.js"],
+      skillsWanted: ["UI/UX Design", "Figma"],
+      rating: 4.2
+    },
+    {
+      name: "Alex",
+      skillsOffered: ["Java", "Spring Boot"],
+      skillsWanted: ["Microservices", "AWS"],
+      rating: 3.8
+    },
+    {
+      name: "Priya",
+      skillsOffered: ["Data Analysis", "SQL"],
+      skillsWanted: ["Python", "Machine Learning"],
+      rating: 4.0
+    },
+    {
+      name: "Jordan",
+      skillsOffered: ["Flutter", "Dart"],
+      skillsWanted: ["Firebase", "UI Design"],
+      rating: 3.5
+    },
+    {
+      name: "Taylor",
+      skillsOffered: ["Photoshop", "Illustrator"],
+      skillsWanted: ["Web Design", "Branding"],
+      rating: 4.1
+    },
+    {
+      name: "Casey",
+      skillsOffered: ["DevOps", "Docker"],
+      skillsWanted: ["Kubernetes", "CI/CD"],
+      rating: 4.3
+    },
+    {
+      name: "Riley",
+      skillsOffered: ["Content Writing", "SEO"],
+      skillsWanted: ["Copywriting", "Marketing"],
+      rating: 3.9
+    },
+    {
+      name: "Morgan",
+      skillsOffered: ["Cybersecurity", "Ethical Hacking"],
+      skillsWanted: ["Network Security", "Pen Testing"],
+      rating: 4.4
+    },
+    {
+      name: "Skyler",
+      skillsOffered: ["Angular", "TypeScript"],
+      skillsWanted: ["RxJS", "State Management"],
+      rating: 3.7
+    },
+    {
+      name: "Jamie",
+      skillsOffered: ["Swift", "iOS Development"],
+      skillsWanted: ["UIKIt", "Core Data"],
+      rating: 4.0
+    },
+    {
+      name: "Avery",
+      skillsOffered: ["Android", "Kotlin"],
+      skillsWanted: ["Jetpack Compose", "Material Design"],
+      rating: 3.8
+    },
+    {
+      name: "Michael",
+      skillsOffered: ["Generative Ai", "Prompt Engineering"],
+      skillsWanted: ["Vibe Coding", "be10x"],
+      rating: 3.8
+    }
   ];
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 3;
+
+
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = allUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   return (
-    <div className="w-full h-full mx-auto p-4 bg-black ">
-        <div className='flex flex-row gap-4 justify-between  max-w-full px-2 py-2 mb-10'>
-             <h1 className="text-2xl font-bold mb-6 text-white hover:text-transparent duration-500 hover:bg-clip-text hover:bg-gradient-to-r hover:bg-blend-difference hover:from-purple-500 from-10% hover:to-pink-500 to-90% cursor-pointer">Skill Swap Platform</h1>
-             <a href="https://www.coursera.org/?authMode=login">
-             <div class="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300 ">Login</div>
-             </a>
-        </div>
-     
+    <div className="w-full h-full mx-auto p-4 bg-gradient-to-br from-black from-10% to-pink-800 to-90% ">
+      <div className='flex flex-row gap-4 justify-between max-w-full px-2 py-2 mb-10'>
+        <h1 className="text-2xl font-bold mb-6 text-white hover:text-transparent duration-500 hover:bg-clip-text hover:bg-gradient-to-r hover:bg-blend-difference hover:from-purple-500 from-10% hover:to-pink-500 to-90% cursor-pointer">
+          Skill Swap Platform
+        </h1>
+        <a href="">
+          <div className="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300">Login</div>
+        </a>
+      </div>
       
       <div className="mb-6 flex flex-row gap-4 justify-center">
         <select className="block w-32 rounded-md text-black border-gray-300 shadow-sm bg-purple-200 sm:text-sm px-2">
-            <div className='text-black font-light px-4'>
-                <option>Availability</option>
-                <option>Free</option>
-                <option>Busy</option>
-                <option>Waiting</option>
-            </div>
-      
-      Availaibility
-    </select>
+          <option>Availability</option>
+          <option>Free</option>
+          <option>Busy</option>
+          <option>Waiting</option>
+        </select>
         <input 
           type="text" 
           placeholder="Search" 
@@ -54,19 +132,22 @@ const MainPage = () => {
       </div>
       
       <div className="border text-white border-gray-200 rounded-lg overflow-hidden">
-        {users.map((user, index) => (
+        {currentUsers.map((user, index) => (
           <UserCard key={index} {...user} />
         ))}
       </div>
       
       <div className="mt-6 flex justify-center">
         <div className="flex space-x-1">
-          {[1, 2, 3, 4, 5, 6, 7].map(num => (
+          {Array.from({ length: Math.ceil(allUsers.length / usersPerPage) }, (_, i) => i + 1).map(number => (
             <button 
-              key={num}
-              className="w-8 h-8 text-white flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+              key={number}
+              onClick={() => paginate(number)}
+              className={`w-8 h-8 text-white flex items-center justify-center border duration-500 border-gray-300 rounded hover:bg-gray-100 hover:text-pink-500 ${
+                currentPage === number ? 'bg-pink-500' : ''
+              }`}
             >
-              {num}
+              {number}
             </button>
           ))}
         </div>

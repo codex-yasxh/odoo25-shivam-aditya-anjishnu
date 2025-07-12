@@ -3,8 +3,8 @@ const UserCard = ({ name, skillsOffered, skillsWanted, rating }) => {
   return (
     <div className="flex items-center p-4 border-b border-gray-200">
       <div className="mr-4">
-        <div className="w-12 h-12 bg-gray-300">
-            <img className="rounded-full" src="https://img.freepik.com/free-photo/happy-man-student-with-afro-hairdo-shows-white-teeth-being-good-mood-after-classes_273609-16608.jpg?semt=ais_hybrid&w=740" alt="" />
+        <div className="w-12 h-20">
+            <img className="rounded-full h-11" src="https://img.freepik.com/free-photo/happy-man-student-with-afro-hairdo-shows-white-teeth-being-good-mood-after-classes_273609-16608.jpg?semt=ais_hybrid&w=740" alt="" />
         </div>
       </div>
       <div className="flex-grow">
@@ -31,11 +31,11 @@ const UserCard = ({ name, skillsOffered, skillsWanted, rating }) => {
         </div>
       </div>
       <div className="flex flex-col items-center">
-        <button className="mb-2 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+        <button className="mb-2 px-4 py-1 bg-red-500 text-white rounded duration-500 hover:bg-blue-600">
           Request
         </button>
-        <div className="text-sm">
-          <span>rating {rating}/5</span>
+        <div className="text-sm ">
+          <span>Rating {rating}/5</span>
         </div>
       </div>
     </div>

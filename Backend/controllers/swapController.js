@@ -1,608 +1,327 @@
 const Swap = require('../models/Swap');
 const User = require('../models/User');
 
-// Create new swap request
-exports.createSwapRequest = async (req, res) => {
+// Create a new swap request
+const createSwapRequest = async (req, res) => {
   try {
-    const {
-      providerId,
+    const { receiverId, skillOffered, skillRequested, message } = req.body;
+    const requesterId = req.user.id;
+
+    // Validation
+    if (!receiverId || !skillOffered || !skillRequested) {
+      return res.status(400).json({ 
+        error: 'Please provide receiver ID, skill offered, and skill requested' 
+      });
+    }
+
+    // Check if user is trying to create swap with themselves
+    if (requesterId === receiverId) {
+      return res.status(400).json({ error: 'You cannot create a swap with yourself' });
+    }
+
+    // Check if receiver exists
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ error: 'Receiver not found' });
+    }
+
+    // Check if receiver has the requested skill
+    if (!receiver.skillsOffered.includes(skillRequested)) {
+      return res.status(400).json({ 
+        error: 'Receiver does not offer the requested skill' 
+      });
+    }
+
+    // Check if requester has the offered skill
+    const requester = await User.findById(requesterId);
+    if (!requester.skillsOffered.includes(skillOffered)) {
+      return res.status(400).json({ 
+        error: 'You do not offer the skill you are trying to swap' 
+      });
+    }
+
+    // Check if similar swap request already exists
+    const existingSwap = await Swap.findOne({
+      requesterId,
+      receiverId,
       skillOffered,
       skillRequested,
-      message,
-      scheduledDate
-    } = req.body;
-
-    // Validate provider exists and is active
-    const provider = await User.findById(providerId);
-    if (!provider || !provider.isActive || provider.isBanned) {
-      return res.status(404).json({
-        success: false,
-        message: 'Provider not found or inactive'
-      });
-    }
-
-    // Check if requester is trying to request from themselves
-    if (providerId === req.user.userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot create swap request with yourself'
-      });
-    }
-
-    // Check if there's already a pending request between these users for same skills
-    const existingRequest = await Swap.findOne({
-      requester: req.user.userId,
-      provider: providerId,
-      'skillOffered.skill': skillOffered.skill,
-      'skillRequested.skill': skillRequested.skill,
       status: 'pending'
     });
 
-    if (existingRequest) {
-      return res.status(400).json({
-        success: false,
-        message: 'You already have a pending request for this skill swap'
+    if (existingSwap) {
+      return res.status(400).json({ 
+        error: 'A similar swap request already exists' 
       });
     }
 
-    // Create new swap request
+    // Create swap request
     const swap = new Swap({
-      requester: req.user.userId,
-      provider: providerId,
+      requesterId,
+      receiverId,
       skillOffered,
       skillRequested,
       message,
-      scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined
+      status: 'pending'
     });
 
     await swap.save();
 
     // Populate the swap with user details
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto' },
-      { path: 'provider', select: 'name profilePhoto' }
-    ]);
+    const populatedSwap = await Swap.findById(swap._id)
+      .populate('requesterId', 'name profilePhoto')
+      .populate('receiverId', 'name profilePhoto');
 
     res.status(201).json({
-      success: true,
       message: 'Swap request created successfully',
-      data: { swap }
+      swap: populatedSwap
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to create swap request',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Get swap requests (received by user)
-exports.getReceivedRequests = async (req, res) => {
+// Get all swaps for current user
+const getUserSwaps = async (req, res) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    let query = { provider: req.user.userId };
-    if (status) {
-      query.status = status;
-    }
-
-    const swaps = await Swap.find(query)
-      .populate('requester', 'name profilePhoto rating')
-      .populate('provider', 'name profilePhoto rating')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Swap.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        swaps,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get received requests',
-      error: error.message
-    });
-  }
-};
-
-// Get swap requests (sent by user)
-exports.getSentRequests = async (req, res) => {
-  try {
-    const { status, page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    let query = { requester: req.user.userId };
-    if (status) {
-      query.status = status;
-    }
-
-    const swaps = await Swap.find(query)
-      .populate('requester', 'name profilePhoto rating')
-      .populate('provider', 'name profilePhoto rating')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Swap.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        swaps,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get sent requests',
-      error: error.message
-    });
-  }
-};
-
-// Get all user's swaps
-exports.getUserSwaps = async (req, res) => {
-  try {
-    const { status, page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const status = req.query.status || 'all';
 
     let query = {
       $or: [
-        { requester: req.user.userId },
-        { provider: req.user.userId }
+        { requesterId: userId },
+        { receiverId: userId }
       ]
     };
 
-    if (status) {
+    if (status !== 'all') {
       query.status = status;
     }
 
     const swaps = await Swap.find(query)
-      .populate('requester', 'name profilePhoto rating')
-      .populate('provider', 'name profilePhoto rating')
+      .populate('requesterId', 'name profilePhoto averageRating')
+      .populate('receiverId', 'name profilePhoto averageRating')
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
 
     const total = await Swap.countDocuments(query);
 
     res.json({
-      success: true,
-      data: {
-        swaps,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+      swaps,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get swaps received by current user
+const getReceivedSwaps = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const status = req.query.status || 'all';
+
+    let query = { receiverId: userId };
+
+    if (status !== 'all') {
+      query.status = status;
+    }
+
+    const swaps = await Swap.find(query)
+      .populate('requesterId', 'name profilePhoto averageRating')
+      .populate('receiverId', 'name profilePhoto averageRating')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Swap.countDocuments(query);
+
+    res.json({
+      swaps,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get swaps sent by current user
+const getSentSwaps = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const status = req.query.status || 'all';
+
+    let query = { requesterId: userId };
+
+    if (status !== 'all') {
+      query.status = status;
+    }
+
+    const swaps = await Swap.find(query)
+      .populate('requesterId', 'name profilePhoto averageRating')
+      .populate('receiverId', 'name profilePhoto averageRating')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Swap.countDocuments(query);
+
+    res.json({
+      swaps,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get swap by ID
+const getSwapById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const swap = await Swap.findById(id)
+      .populate('requesterId', 'name profilePhoto averageRating email')
+      .populate('receiverId', 'name profilePhoto averageRating email');
+
+    if (!swap) {
+      return res.status(404).json({ error: 'Swap not found' });
+    }
+
+    // Check if user is part of this swap
+    if (swap.requesterId._id.toString() !== userId && swap.receiverId._id.toString() !== userId) {
+      return res.status(403).json({ error: 'You can only view your own swaps' });
+    }
+
+    res.json({ swap });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update swap status (accept/reject/complete)
+const updateSwapStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user.id;
+
+    const swap = await Swap.findById(id);
+    if (!swap) {
+      return res.status(404).json({ error: 'Swap not found' });
+    }
+
+    // Validate status
+    const validStatuses = ['accepted', 'rejected', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Only receiver can accept/reject pending swaps
+    if (swap.status === 'pending' && (status === 'accepted' || status === 'rejected')) {
+      if (swap.receiverId.toString() !== userId) {
+        return res.status(403).json({ error: 'Only the receiver can accept or reject swap requests' });
       }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get user swaps',
-      error: error.message
-    });
-  }
-};
-
-// Get single swap by ID
-exports.getSwapById = async (req, res) => {
-  try {
-    const swap = await Swap.findById(req.params.id)
-      .populate('requester', 'name profilePhoto rating email')
-      .populate('provider', 'name profilePhoto rating email');
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap not found'
-      });
     }
 
-    // Check if user is part of this swap
-    if (!swap.requester._id.equals(req.user.userId) && !swap.provider._id.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
+    // Both parties can mark as completed
+    if (status === 'completed') {
+      if (swap.requesterId.toString() !== userId && swap.receiverId.toString() !== userId) {
+        return res.status(403).json({ error: 'Only participants can mark swap as completed' });
+      }
+      if (swap.status !== 'accepted') {
+        return res.status(400).json({ error: 'Swap must be accepted before it can be completed' });
+      }
     }
 
-    res.json({
-      success: true,
-      data: { swap }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get swap',
-      error: error.message
-    });
-  }
-};
-
-// Accept swap request
-exports.acceptSwapRequest = async (req, res) => {
-  try {
-    const swap = await Swap.findById(req.params.id);
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap request not found'
-      });
+    // Both parties can cancel
+    if (status === 'cancelled') {
+      if (swap.requesterId.toString() !== userId && swap.receiverId.toString() !== userId) {
+        return res.status(403).json({ error: 'Only participants can cancel swap' });
+      }
+      if (swap.status === 'completed') {
+        return res.status(400).json({ error: 'Cannot cancel completed swap' });
+      }
     }
 
-    // Check if user is the provider
-    if (!swap.provider.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the provider can accept this request'
-      });
-    }
-
-    // Check if swap can be accepted
-    if (!swap.canBeAccepted()) {
-      return res.status(400).json({
-        success: false,
-        message: 'This swap request cannot be accepted'
-      });
-    }
-
-    swap.status = 'accepted';
-    await swap.save();
-
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto' },
-      { path: 'provider', select: 'name profilePhoto' }
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Swap request accepted successfully',
-      data: { swap }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to accept swap request',
-      error: error.message
-    });
-  }
-};
-
-// Reject swap request
-exports.rejectSwapRequest = async (req, res) => {
-  try {
-    const { rejectionReason } = req.body;
-    const swap = await Swap.findById(req.params.id);
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap request not found'
-      });
-    }
-
-    // Check if user is the provider
-    if (!swap.provider.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the provider can reject this request'
-      });
-    }
-
-    // Check if swap can be rejected
-    if (!swap.canBeRejected()) {
-      return res.status(400).json({
-        success: false,
-        message: 'This swap request cannot be rejected'
-      });
-    }
-
-    swap.status = 'rejected';
-    swap.rejectionReason = rejectionReason;
-    await swap.save();
-
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto' },
-      { path: 'provider', select: 'name profilePhoto' }
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Swap request rejected successfully',
-      data: { swap }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to reject swap request',
-      error: error.message
-    });
-  }
-};
-
-// Cancel swap request (by requester)
-exports.cancelSwapRequest = async (req, res) => {
-  try {
-    const swap = await Swap.findById(req.params.id);
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap request not found'
-      });
-    }
-
-    // Check if user is the requester
-    if (!swap.requester.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the requester can cancel this request'
-      });
-    }
-
-    // Check if swap can be cancelled
-    if (!swap.canBeCancelled()) {
-      return res.status(400).json({
-        success: false,
-        message: 'This swap request cannot be cancelled'
-      });
-    }
-
-    swap.status = 'cancelled';
-    await swap.save();
-
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto' },
-      { path: 'provider', select: 'name profilePhoto' }
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Swap request cancelled successfully',
-      data: { swap }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to cancel swap request',
-      error: error.message
-    });
-  }
-};
-
-// Start swap (move to in_progress)
-exports.startSwap = async (req, res) => {
-  try {
-    const swap = await Swap.findById(req.params.id);
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap not found'
-      });
-    }
-
-    // Check if user is part of this swap
-    if (!swap.requester.equals(req.user.userId) && !swap.provider.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    // Check if swap is accepted
-    if (swap.status !== 'accepted') {
-      return res.status(400).json({
-        success: false,
-        message: 'Swap must be accepted before starting'
-      });
-    }
-
-    swap.status = 'in_progress';
-    swap.contactExchanged = true;
-    await swap.save();
-
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto email' },
-      { path: 'provider', select: 'name profilePhoto email' }
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Swap started successfully',
-      data: { swap }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to start swap',
-      error: error.message
-    });
-  }
-};
-
-// Mark swap as completed by user
-exports.markSwapCompleted = async (req, res) => {
-  try {
-    const swap = await Swap.findById(req.params.id);
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap not found'
-      });
-    }
-
-    // Check if user is part of this swap
-    if (!swap.requester.equals(req.user.userId) && !swap.provider.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    // Check if swap is in progress
-    if (swap.status !== 'in_progress') {
-      return res.status(400).json({
-        success: false,
-        message: 'Swap must be in progress to mark as completed'
-      });
-    }
-
-    // Mark completion based on who is marking it
-    if (swap.requester.equals(req.user.userId)) {
-      swap.isRequesterCompleted = true;
-    } else {
-      swap.isProviderCompleted = true;
+    // Update swap status
+    swap.status = status;
+    
+    if (status === 'accepted') {
+      swap.acceptedAt = new Date();
+    } else if (status === 'rejected') {
+      swap.rejectedAt = new Date();
+    } else if (status === 'completed') {
+      swap.completedAt = new Date();
+    } else if (status === 'cancelled') {
+      swap.cancelledAt = new Date();
     }
 
     await swap.save();
 
-    // If both marked as completed, update user stats
-    if (swap.status === 'completed') {
-      await User.findByIdAndUpdate(swap.requester, { $inc: { completedSwaps: 1 } });
-      await User.findByIdAndUpdate(swap.provider, { $inc: { completedSwaps: 1 } });
-    }
-
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto' },
-      { path: 'provider', select: 'name profilePhoto' }
-    ]);
+    // Populate the updated swap
+    const populatedSwap = await Swap.findById(swap._id)
+      .populate('requesterId', 'name profilePhoto averageRating')
+      .populate('receiverId', 'name profilePhoto averageRating');
 
     res.json({
-      success: true,
-      message: swap.status === 'completed' ? 'Swap completed successfully' : 'Marked as completed',
-      data: { swap }
+      message: `Swap ${status} successfully`,
+      swap: populatedSwap
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to mark swap as completed',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Update swap details
-exports.updateSwap = async (req, res) => {
+// Delete swap request (only by requester and only if pending)
+const deleteSwapRequest = async (req, res) => {
   try {
-    const { scheduledDate, message } = req.body;
-    const swap = await Swap.findById(req.params.id);
+    const { id } = req.params;
+    const userId = req.user.id;
 
+    const swap = await Swap.findById(id);
     if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap not found'
-      });
+      return res.status(404).json({ error: 'Swap not found' });
     }
 
-    // Check if user is part of this swap
-    if (!swap.requester.equals(req.user.userId) && !swap.provider.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
+    // Only requester can delete their own swap request
+    if (swap.requesterId.toString() !== userId) {
+      return res.status(403).json({ error: 'You can only delete your own swap requests' });
     }
 
-    // Only allow updates for accepted or in_progress swaps
-    if (!['accepted', 'in_progress'].includes(swap.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot update swap in current status'
-      });
-    }
-
-    // Update allowed fields
-    if (scheduledDate) {
-      swap.scheduledDate = new Date(scheduledDate);
-    }
-    if (message) {
-      swap.message = message;
-    }
-
-    await swap.save();
-
-    await swap.populate([
-      { path: 'requester', select: 'name profilePhoto' },
-      { path: 'provider', select: 'name profilePhoto' }
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Swap updated successfully',
-      data: { swap }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to update swap',
-      error: error.message
-    });
-  }
-};
-
-// Delete swap request (only if pending)
-exports.deleteSwapRequest = async (req, res) => {
-  try {
-    const swap = await Swap.findById(req.params.id);
-
-    if (!swap) {
-      return res.status(404).json({
-        success: false,
-        message: 'Swap request not found'
-      });
-    }
-
-    // Check if user is the requester
-    if (!swap.requester.equals(req.user.userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the requester can delete this request'
-      });
-    }
-
-    // Only allow deletion of pending requests
+    // Can only delete pending swaps
     if (swap.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: 'Only pending requests can be deleted'
-      });
+      return res.status(400).json({ error: 'Can only delete pending swap requests' });
     }
 
-    await Swap.findByIdAndDelete(req.params.id);
+    await Swap.findByIdAndDelete(id);
 
-    res.json({
-      success: true,
-      message: 'Swap request deleted successfully'
-    });
+    res.json({ message: 'Swap request deleted successfully' });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to delete swap request',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
+};
+
+module.exports = {
+  createSwapRequest,
+  getUserSwaps,
+  getReceivedSwaps,
+  getSentSwaps,
+  getSwapById,
+  updateSwapStatus,
+  deleteSwapRequest
 };

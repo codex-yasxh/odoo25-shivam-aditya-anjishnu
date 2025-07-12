@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import UserCard from './UserCards.jsx';
+import LoginPage from './login.jsx';
 
 const MainPage = () => {
   // Sample data - in a real app you would fetch this from an API
-  const allUsers = [
+   const allUsers = [
     {
       name: "Steve",
       skillsOffered: ["Javascript", "Python", "Design"],
@@ -96,27 +97,53 @@ const MainPage = () => {
     }
   ];
 
+  // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 3;
 
+  // State for login modal
+  const [showLogin, setShowLogin] = useState(false);
 
+  // Pagination calculations
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = allUsers.slice(indexOfFirstUser, indexOfLastUser);
 
+  // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
-    <div className="w-full h-full mx-auto p-4 bg-gradient-to-br from-black from-10% to-pink-800 to-90% ">
+    <div className="w-full h-full mx-auto p-4 bg-gradient-to-br from-black from-10% to-pink-800 to-90%">
       <div className='flex flex-row gap-4 justify-between max-w-full px-2 py-2 mb-10'>
         <h1 className="text-2xl font-bold mb-6 text-white hover:text-transparent duration-500 hover:bg-clip-text hover:bg-gradient-to-r hover:bg-blend-difference hover:from-purple-500 from-10% hover:to-pink-500 to-90% cursor-pointer">
           Skill Swap Platform
         </h1>
-        <a href="">
-          <div className="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300">Login</div>
-        </a>
+        
+        {/* Login Button */}
+        <button 
+          onClick={() => setShowLogin(true)}
+          className="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300"
+        >
+          Login
+        </button>
       </div>
+
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-tr from-black to-pink-900 p-6 rounded-lg max-w-md w-full relative">
+            <button 
+              onClick={() => setShowLogin(false)}
+              className="absolute top-4 right-4 text-white text-2xl hover:text-pink-400"
+            >
+              ×
+            </button>
+            <LoginPage onClose={() => setShowLogin(false)} />
+          </div>
+        </div>
+      )}
       
+      {/* Search and Filter Section */}
       <div className="mb-6 flex flex-row gap-4 justify-center">
         <select className="block w-32 rounded-md text-black border-gray-300 shadow-sm bg-purple-200 sm:text-sm px-2">
           <option>Availability</option>
@@ -131,12 +158,14 @@ const MainPage = () => {
         />
       </div>
       
+      {/* User Cards */}
       <div className="border text-white border-gray-200 rounded-lg overflow-hidden">
         {currentUsers.map((user, index) => (
           <UserCard key={index} {...user} />
         ))}
       </div>
       
+      {/* Pagination */}
       <div className="mt-6 flex justify-center">
         <div className="flex space-x-1">
           {Array.from({ length: Math.ceil(allUsers.length / usersPerPage) }, (_, i) => i + 1).map(number => (

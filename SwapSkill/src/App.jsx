@@ -1,10 +1,12 @@
+// App.jsx
+import MainPage from './components/Mainpage.jsx';
 
 function App() {
   return (
-    <>
-      <h1 className='text-2xl text-amber-300'>Hello World</h1>
-    </>
-  )
+    <div className="min-h-screen bg-gray-50">
+      <MainPage />
+    </div>
+  );
 }
 
-export default App
+export default App;

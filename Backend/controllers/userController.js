@@ -1,33 +1,52 @@
 const User = require('../models/User');
-const Swap = require('../models/Swap');
-const Feedback = require('../models/Feedback');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const validator = require('validator');
 
 // Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '30d',
+  });
 };
 
 // Register new user
-exports.register = async (req, res) => {
+const registerUser = async (req, res) => {
   try {
-    const { name, email, password, location } = req.body;
+    const { name, email, password, location, skillsOffered, skillsWanted, availability } = req.body;
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Please provide name, email, and password' });
+    }
+
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ error: 'Please provide a valid email' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User already exists with this email' 
-      });
+      return res.status(400).json({ error: 'User already exists with this email' });
     }
 
-    // Create new user
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
     const user = new User({
       name,
       email,
-      password,
-      location
+      password: hashedPassword,
+      location,
+      skillsOffered: skillsOffered || [],
+      skillsWanted: skillsWanted || [],
+      availability: availability || []
     });
 
     await user.save();
@@ -36,426 +55,288 @@ exports.register = async (req, res) => {
     const token = generateToken(user._id);
 
     res.status(201).json({
-      success: true,
       message: 'User registered successfully',
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          location: user.location,
-          isPublic: user.isPublic,
-          role: user.role
-        },
-        token
-      }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        location: user.location,
+        skillsOffered: user.skillsOffered,
+        skillsWanted: user.skillsWanted,
+        availability: user.availability,
+        profilePhoto: user.profilePhoto,
+        isPublic: user.isPublic
+      },
+      token
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Registration failed',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
 // Login user
-exports.login = async (req, res) => {
+const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user and include password for comparison
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Please provide email and password' });
+    }
+
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+      return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     // Check if user is banned
-    if (user.isBanned) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account is banned',
-        banReason: user.banReason
+    if (user.status === 'banned') {
+      return res.status(403).json({ 
+        error: 'Account is banned',
+        reason: user.banReason 
       });
     }
 
     // Check password
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      });
+      return res.status(400).json({ error: 'Invalid credentials' });
     }
-
-    // Update last active
-    user.lastActive = new Date();
-    await user.save();
 
     // Generate token
     const token = generateToken(user._id);
 
     res.json({
-      success: true,
       message: 'Login successful',
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          location: user.location,
-          profilePhoto: user.profilePhoto,
-          isPublic: user.isPublic,
-          role: user.role,
-          rating: user.rating
-        },
-        token
-      }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        location: user.location,
+        skillsOffered: user.skillsOffered,
+        skillsWanted: user.skillsWanted,
+        availability: user.availability,
+        profilePhoto: user.profilePhoto,
+        isPublic: user.isPublic,
+        role: user.role,
+        averageRating: user.averageRating,
+        totalReviews: user.totalReviews
+      },
+      token
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Login failed',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
 // Get user profile
-exports.getProfile = async (req, res) => {
+const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const userId = req.params.id || req.user.id;
+    
+    const user = await User.findById(userId).select('-password');
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get user's swap statistics
-    const swapStats = await Swap.getUserSwapStats(user._id);
+    // If it's not the current user and profile is private, restrict access
+    if (userId !== req.user?.id && !user.isPublic) {
+      return res.status(403).json({ error: 'Profile is private' });
+    }
 
     res.json({
-      success: true,
-      data: {
-        user,
-        swapStats
+      user: {
+        id: user._id,
+        name: user.name,
+        email: userId === req.user?.id ? user.email : undefined, // Only show email to self
+        location: user.location,
+        skillsOffered: user.skillsOffered,
+        skillsWanted: user.skillsWanted,
+        availability: user.availability,
+        profilePhoto: user.profilePhoto,
+        isPublic: user.isPublic,
+        averageRating: user.averageRating,
+        totalReviews: user.totalReviews,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get profile',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
 // Update user profile
-exports.updateProfile = async (req, res) => {
+const updateUserProfile = async (req, res) => {
   try {
-    const allowedUpdates = ['name', 'location', 'profilePhoto', 'skillsOffered', 'skillsWanted', 'availability', 'isPublic'];
-    const updates = {};
+    const userId = req.user.id;
+    const { name, location, skillsOffered, skillsWanted, availability, profilePhoto } = req.body;
 
-    // Filter allowed updates
-    Object.keys(req.body).forEach(key => {
-      if (allowedUpdates.includes(key)) {
-        updates[key] = req.body[key];
-      }
-    });
-
-    const user = await User.findByIdAndUpdate(
-      req.user.userId,
-      updates,
-      { new: true, runValidators: true }
-    ).select('-password');
-
+    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
+    // Update fields
+    if (name) user.name = name;
+    if (location !== undefined) user.location = location;
+    if (skillsOffered) user.skillsOffered = skillsOffered;
+    if (skillsWanted) user.skillsWanted = skillsWanted;
+    if (availability) user.availability = availability;
+    if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
+
+    await user.save();
+
     res.json({
-      success: true,
       message: 'Profile updated successfully',
-      data: { user }
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        location: user.location,
+        skillsOffered: user.skillsOffered,
+        skillsWanted: user.skillsWanted,
+        availability: user.availability,
+        profilePhoto: user.profilePhoto,
+        isPublic: user.isPublic,
+        averageRating: user.averageRating,
+        totalReviews: user.totalReviews
+      }
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to update profile',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Search users by skills
-exports.searchUsers = async (req, res) => {
+// Delete user account
+const deleteUser = async (req, res) => {
   try {
-    const { skill, location, page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+    const userId = req.user.id;
 
-    let query = {
-      isPublic: true,
-      isActive: true,
-      isBanned: false,
-      _id: { $ne: req.user.userId } // Exclude current user
-    };
-
-    // Add skill search
-    if (skill) {
-      query.$or = [
-        { 'skillsOffered.skill': { $regex: skill, $options: 'i' } },
-        { 'skillsWanted.skill': { $regex: skill, $options: 'i' } }
-      ];
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Add location filter
+    // You might want to handle related data cleanup here
+    // For example, cancel all pending swaps, etc.
+
+    await User.findByIdAndDelete(userId);
+
+    res.json({ message: 'User account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all public users with pagination
+const getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skill = req.query.skill;
+    const location = req.query.location;
+
+    let query = { isPublic: true, status: 'active' };
+
+    if (skill) {
+      query.skillsOffered = { $regex: skill, $options: 'i' };
+    }
+
     if (location) {
       query.location = { $regex: location, $options: 'i' };
     }
 
     const users = await User.find(query)
       .select('-password -email')
-      .sort({ 'rating.average': -1, lastActive: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
 
     const total = await User.countDocuments(query);
 
     res.json({
-      success: true,
-      data: {
-        users,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+      users,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Search failed',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Get user by ID (public profile)
-exports.getUserById = async (req, res) => {
+// Search users by skill
+const searchUsers = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password -email');
-    
+    const { skill, location } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    if (!skill) {
+      return res.status(400).json({ error: 'Please provide a skill to search for' });
+    }
+
+    let query = { 
+      isPublic: true, 
+      status: 'active',
+      skillsOffered: { $regex: skill, $options: 'i' }
+    };
+
+    if (location) {
+      query.location = { $regex: location, $options: 'i' };
+    }
+
+    const users = await User.find(query)
+      .select('-password -email')
+      .sort({ averageRating: -1, totalReviews: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      users,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+      searchTerm: skill
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Toggle profile visibility
+const toggleProfileVisibility = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { isPublic } = req.body;
+
+    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    if (!user.isPublic) {
-      return res.status(403).json({
-        success: false,
-        message: 'This profile is private'
-      });
-    }
-
-    // Get user's feedback summary
-    const feedbackSummary = await Feedback.getUserFeedbackSummary(user._id);
-
-    res.json({
-      success: true,
-      data: {
-        user,
-        feedbackSummary
-      }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get user',
-      error: error.message
-    });
-  }
-};
-
-// Get user's feedbacks
-exports.getUserFeedbacks = async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const feedbacks = await Feedback.find({ 
-      reviewee: req.params.id,
-      isPublic: true,
-      flagged: false
-    })
-    .populate('reviewer', 'name profilePhoto')
-    .populate('swap', 'skillOffered.skill skillRequested.skill')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(parseInt(limit));
-
-    const total = await Feedback.countDocuments({ 
-      reviewee: req.params.id,
-      isPublic: true,
-      flagged: false
-    });
-
-    res.json({
-      success: true,
-      data: {
-        feedbacks,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get feedbacks',
-      error: error.message
-    });
-  }
-};
-
-// Get dashboard data
-exports.getDashboard = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-
-    // Get user's swap statistics
-    const swapStats = await Swap.getUserSwapStats(userId);
-
-    // Get recent swaps
-    const recentSwaps = await Swap.find({
-      $or: [
-        { requester: userId },
-        { provider: userId }
-      ]
-    })
-    .populate('requester', 'name profilePhoto')
-    .populate('provider', 'name profilePhoto')
-    .sort({ createdAt: -1 })
-    .limit(5);
-
-    // Get pending swap requests (as provider)
-    const pendingRequests = await Swap.find({
-      provider: userId,
-      status: 'pending'
-    })
-    .populate('requester', 'name profilePhoto')
-    .sort({ createdAt: -1 })
-    .limit(5);
-
-    // Get recent feedback received
-    const recentFeedback = await Feedback.find({
-      reviewee: userId,
-      isPublic: true,
-      flagged: false
-    })
-    .populate('reviewer', 'name profilePhoto')
-    .sort({ createdAt: -1 })
-    .limit(3);
-
-    res.json({
-      success: true,
-      data: {
-        swapStats,
-        recentSwaps,
-        pendingRequests,
-        recentFeedback
-      }
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to get dashboard data',
-      error: error.message
-    });
-  }
-};
-
-// Change password
-exports.changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Check current password
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password is incorrect'
-      });
-    }
-
-    // Update password
-    user.password = newPassword;
+    user.isPublic = isPublic;
     await user.save();
 
     res.json({
-      success: true,
-      message: 'Password changed successfully'
+      message: `Profile is now ${isPublic ? 'public' : 'private'}`,
+      isPublic: user.isPublic
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to change password',
-      error: error.message
-    });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// Delete account
-exports.deleteAccount = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-
-    // Cancel all pending swaps
-    await Swap.updateMany(
-      {
-        $or: [
-          { requester: userId },
-          { provider: userId }
-        ],
-        status: 'pending'
-      },
-      { status: 'cancelled' }
-    );
-
-    // Delete user
-    await User.findByIdAndDelete(userId);
-
-    res.json({
-      success: true,
-      message: 'Account deleted successfully'
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: 'Failed to delete account',
-      error: error.message
-    });
-  }
+module.exports = {
+  registerUser,
+  loginUser,
+  getUserProfile,
+  updateUserProfile,
+  deleteUser,
+  getAllUsers,
+  searchUsers,
+  toggleProfileVisibility
 };

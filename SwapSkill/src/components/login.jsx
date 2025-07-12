@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const LoginPage = ({ onClose }) => {
+const LoginPage = ({ onClose, onLoginSuccess }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -31,7 +31,8 @@ const LoginPage = ({ onClose }) => {
       alert('Login successful! Welcome back!');
       setIsLoading(false);
       setFormData({ email: '', password: '' });
-      onClose(); // Close the modal after successful login
+      onClose();
+      onLoginSuccess();
     }, 1500);
   };
 

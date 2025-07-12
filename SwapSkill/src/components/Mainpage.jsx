@@ -4,9 +4,9 @@ import LoginPage from './login.jsx';
 
 const MainPage = () => {
   // Sample data - in a real app you would fetch this from an API
-   const allUsers = [
+  const allUsers = [
     {
-      name: "Steve",
+  name: "Steve",
       skillsOffered: ["Javascript", "Python", "Design"],
       skillsWanted: ["Version", "Graphic diagram"],
       rating: 3.4
@@ -101,8 +101,9 @@ const MainPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 3;
 
-  // State for login modal
+  // State for login modal and authentication
   const [showLogin, setShowLogin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Pagination calculations
   const indexOfLastUser = currentPage * usersPerPage;
@@ -112,20 +113,45 @@ const MainPage = () => {
   // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  // Handle successful login
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    setShowLogin(false);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
   return (
     <div className="w-full h-full mx-auto p-4 bg-gradient-to-br from-black from-10% to-pink-800 to-90%">
       <div className='flex flex-row gap-4 justify-between max-w-full px-2 py-2 mb-10'>
-        <h1 className="text-2xl font-bold mb-6 text-white hover:text-transparent duration-500 hover:bg-clip-text hover:bg-gradient-to-r hover:bg-blend-difference hover:from-purple-500 from-10% hover:to-pink-500 to-90% cursor-pointer">
-          Skill Swap Platform
+        <h1 className="text-2xl font-bold mb-6 text-white duration-500 hover:bg-clip-text hover:bg-gradient-to-r hover:bg-blend-difference hover:from-purple-500 from-10% hover:to-pink-500 to-90% cursor-pointer">
+          {isLoggedIn ? <div className='flex flex-row h-18 w-20 gap-8 '>
+            <img className='rounded-full' src="https://img.freepik.com/free-photo/happy-man-student-with-afro-hairdo-shows-white-teeth-being-good-mood-after-classes_273609-16608.jpg?semt=ais_hybrid&w=740" alt="" />
+            <button className='text-xl hover:underline cursor-pointer'>
+                <h1>Swap Request</h1>
+            </button>
+          </div> : "Skill Swap Platform"}
         </h1>
         
-        {/* Login Button */}
-        <button 
-          onClick={() => setShowLogin(true)}
-          className="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300"
-        >
-          Login
-        </button>
+        {/* Login/Logout Button */}
+        {isLoggedIn ? (
+          <button 
+            onClick={handleLogout}
+            className="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300"
+          >
+            Logout
+          </button>
+        ) : (
+          <button 
+            onClick={() => setShowLogin(true)}
+            className="hidden cursor-pointer text-xl text-white md:flex hover:text-blue-400 duration-300"
+          >
+            Login
+          </button>
+        )}
       </div>
 
       {/* Login Modal */}
@@ -138,7 +164,10 @@ const MainPage = () => {
             >
               ×
             </button>
-            <LoginPage onClose={() => setShowLogin(false)} />
+            <LoginPage 
+              onClose={() => setShowLogin(false)} 
+              onLoginSuccess={handleLoginSuccess}
+            />
           </div>
         </div>
       )}

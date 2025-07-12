@@ -1,7 +1,7 @@
 // components/UserCard.jsx
 const UserCard = ({ name, skillsOffered, skillsWanted, rating }) => {
   return (
-    <div className="flex items-center p-4 border-b border-gray-200">
+    <div className="flex items-center p-4 border-b  gap-2 hover:bg-pink-900 duration-500">
       <div className="mr-4">
         <div className="w-12 h-20">
             <img className="rounded-full h-11" src="https://img.freepik.com/free-photo/happy-man-student-with-afro-hairdo-shows-white-teeth-being-good-mood-after-classes_273609-16608.jpg?semt=ais_hybrid&w=740" alt="" />

@@ -188,7 +188,7 @@ const MainPage = () => {
       </div>
       
       {/* User Cards */}
-      <div className="border text-white border-gray-200 rounded-lg overflow-hidden">
+      <div className="border text-white   rounded-lg  flex flex-col ">
         {currentUsers.map((user, index) => (
           <UserCard key={index} {...user} />
         ))}
